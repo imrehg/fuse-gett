@@ -80,13 +80,14 @@ class Gett(LoggingMixIn, Operations):
         result = json.loads(req.content) if req.ok else []
         return result
 
-    def _getfile(self, sharename, fileid):
+    def _getfile(self, sharename, fileid, size=None, offset=None):
         """ Ge.tt API call to download a file """
         apitarget = "%s/1/files/%s/%s/blob" %(self.apibase, sharename, fileid)
-        req = requests.get(apitarget)
+        headers = dict(Range="bytes=%d-%d" %(offset, offset+size)) if size and offset else None
+        req = requests.get(apitarget, headers=headers)
         if req.ok:
             res = req.content
-            print "Downloaded: ", sharename, fileid
+            print("Downloaded: ", sharename, fileid, len(res))
         else:
             res = 0
         return res
@@ -161,12 +162,10 @@ class Gett(LoggingMixIn, Operations):
 
     def read(self, path, size, offset, fh):
         """ Called when a file is read """
-        # Download data if we haven't done that yet
-        if path not in self.data:
-            sharename, fileid = self.files[path]['sharename'], self.files[path]['fileid']
-            binfile = self._getfile(sharename, fileid)
-            self.data[path] = binfile
-        return self.data[path][offset:offset + size]
+        # should add some cleverer local caching in there
+        sharename, fileid = self.files[path]['sharename'], self.files[path]['fileid']
+        binfile = self._getfile(sharename, fileid, size, offset)
+        return binfile
 
     def readdir(self, path, fh):
         """ Read a directory, that is the files in a given share """
