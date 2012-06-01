@@ -177,9 +177,8 @@ class Gett(LoggingMixIn, Operations):
             pathlen += 1
         result = ['.', '..']
         for x in self.files:
-            if x == '/' or not x.startswith(path):
+            if x == '/' or not x.startswith(path+'/'):
                 continue
-            print x[pathlen:]
             name = x[pathlen:].split('/')
             if len(name) == 1:
                 result += [name[0]]
