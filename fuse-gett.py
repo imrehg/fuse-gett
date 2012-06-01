@@ -51,11 +51,12 @@ class Gett(LoggingMixIn, Operations):
             sharename = share['sharename']
             dirname = share['title'] if "title" in share else sharename
             self.files["/%s" %(dirname)] = dict(st_mode=(S_IFDIR | 0755),
-                                      st_ctime=share['created'],
-                                      st_mtime=share['created'],
-                                      st_atime=now,
-                                      st_nlink=2,
-                                      )
+                                                st_ctime=share['created'],
+                                                st_mtime=share['created'],
+                                                st_atime=now,
+                                                st_nlink=2,
+                                                sharename=sharename,
+                                                )
             for f in share['files']:
                 filename = f['filename']
                 size = f['size'] if 'size' in f else 0
@@ -88,6 +89,19 @@ class Gett(LoggingMixIn, Operations):
         else:
             res = 0
         return res
+
+    def _createshare(self, sharename):
+        apitarget = "%s/1/shares/create?accesstoken=%s" %(self.apibase, self.atoken)
+        jdata = json.dumps(dict(title=sharename))
+        req = requests.post(apitarget, data=jdata)
+        print json.loads(req.content)
+        return req.ok
+
+    def _destroyshare(self, sharename):
+        apitarget = "%s/1/shares/%s/destroy?accesstoken=%s" %(self.apibase, sharename, self.atoken)
+        print apitarget
+        req = requests.post(apitarget)
+        return req.ok
 
     def chmod(self, path, mode):
         self.files[path]['st_mode'] &= 0770000
@@ -126,11 +140,18 @@ class Gett(LoggingMixIn, Operations):
         return attrs.keys()
 
     def mkdir(self, path, mode):
-        self.files[path] = dict(st_mode=(S_IFDIR | mode), st_nlink=2,
-                                st_size=0, st_ctime=time(), st_mtime=time(),
-                                st_atime=time())
-
-        self.files['/']['st_nlink'] += 1
+        sharename = path[1:]
+        res = self._createshare(sharename)
+        if res:
+            now = time()
+            self.files["/%s" %(dirname)] = dict(st_mode=(S_IFDIR | 0755),
+                                                st_ctime=now,
+                                                st_mtime=now,
+                                                st_atime=now,
+                                                st_nlink=2,
+                                                sharename=sharename,
+                                                )
+            self.files['/']['st_nlink'] += 1
 
     def open(self, path, flags):
         self.fd += 1
@@ -177,8 +198,13 @@ class Gett(LoggingMixIn, Operations):
         self.files[new] = self.files.pop(old)
 
     def rmdir(self, path):
-        self.files.pop(path)
+        target = self.files.pop(path)
         self.files['/']['st_nlink'] -= 1
+        sharename = target['sharename']
+        self._destroyshare(sharename)
+        for f in self.files:
+            if sharename in f and f['sharename'] == sharename:
+                self.files.pop(f)
 
     def setxattr(self, path, name, value, options, position=0):
         # Ignore options
