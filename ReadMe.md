@@ -8,7 +8,7 @@ I'm not affiliated with Ge.tt in any ways, just making this to enhance their fun
 Requirements
 ============
 
-[Python][3] and [fusepy][4].
+[Python][3] and [fusepy][4] and [requests][7].
 
 Usage
 =====
@@ -52,3 +52,4 @@ See License.txt, basically simple MIT license.
  [4]: https://github.com/terencehonles/fusepy "fusepy on Github"
  [5]: https://open.ge.tt/1/doc/rest "Ge.tt REST API"
  [6]: http://ge.tt/developers/create "Create app on Ge.tt"
+ [7]: http://docs.python-requests.org/en/latest/index.html "requests on Github"
