@@ -13,7 +13,28 @@ Requirements
 Usage
 =====
 
-When it will work, I'll update it here.
+At this experimental stage, one has to [create an app][6] to receive an API key. Once that's done, the program can be called as:
+
+    python fuse-gett.py <mount point> <api key> <user email> <password>
+
+Here the email and password should probably be quoted (within " marks) to avoid problems with special characters.
+
+Current functionality
+=====================
+
+ * Existing shares are loaded upon login
+ * Files from existing shares can be accessed (copy, read, ...)
+ * New shares can be created (but files cannot be uploaded yet)
+ * Existing shares can be destroyed
+
+Future functionality
+====================
+
+ * Full feature download and upload
+ * Renaming shares, renaming files
+ * Move files between shares
+ * Real time updates (Live API)
+ * Separate Ge.tt library for Python that can be included in other software
 
 Contribution
 ============
@@ -30,3 +51,4 @@ See License.txt, basically simple MIT license.
  [3]: http://www.python.org "Python homepage"
  [4]: https://github.com/terencehonles/fusepy "fusepy on Github"
  [5]: https://open.ge.tt/1/doc/rest "Ge.tt REST API"
+ [6]: http://ge.tt/developers/create "Create app on Ge.tt"
