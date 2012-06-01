@@ -81,6 +81,7 @@ class Gett(LoggingMixIn, Operations):
         return result
 
     def _getfile(self, sharename, fileid):
+        """ Ge.tt API call to download a file """
         apitarget = "%s/1/files/%s/%s/blob" %(self.apibase, sharename, fileid)
         req = requests.get(apitarget)
         if req.ok:
@@ -91,15 +92,15 @@ class Gett(LoggingMixIn, Operations):
         return res
 
     def _createshare(self, sharename):
+        """ Ge.tt API call to create a new share """
         apitarget = "%s/1/shares/create?accesstoken=%s" %(self.apibase, self.atoken)
         jdata = json.dumps(dict(title=sharename))
         req = requests.post(apitarget, data=jdata)
-        print json.loads(req.content)
         return req.ok
 
     def _destroyshare(self, sharename):
+        """ Ge.tt API call to destroy a share """
         apitarget = "%s/1/shares/%s/destroy?accesstoken=%s" %(self.apibase, sharename, self.atoken)
-        print apitarget
         req = requests.post(apitarget)
         return req.ok
 
@@ -140,6 +141,7 @@ class Gett(LoggingMixIn, Operations):
         return attrs.keys()
 
     def mkdir(self, path, mode):
+        """ Create a new directory, that is a new remote share """
         sharename = path[1:]
         res = self._createshare(sharename)
         if res:
@@ -167,7 +169,7 @@ class Gett(LoggingMixIn, Operations):
         return self.data[path][offset:offset + size]
 
     def readdir(self, path, fh):
-        """ Read a directory """
+        """ Read a directory, that is the files in a given share """
         # Currently working but low performance because we have to
         # scan the complete list of files
         pathlen = len(path)
@@ -198,6 +200,7 @@ class Gett(LoggingMixIn, Operations):
         self.files[new] = self.files.pop(old)
 
     def rmdir(self, path):
+        """ Remove a directory, that is remove a remote share """
         target = self.files.pop(path)
         self.files['/']['st_nlink'] -= 1
         sharename = target['sharename']
