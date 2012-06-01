@@ -12,6 +12,9 @@ from time import time
 
 from fuse import FUSE, FuseOSError, Operations, LoggingMixIn
 
+import requests
+import simplejson as json
+
 if not hasattr(__builtins__, 'bytes'):
     bytes = str
 
@@ -19,14 +22,47 @@ class Gett(LoggingMixIn, Operations):
     """ 
     Starting off based on the example memory filesystem.
     """
+    apibase = "http://open.ge.tt"
 
-    def __init__(self):
+
+    def __init__(self, apikey, email, password):
+        jdata = json.dumps(dict(apikey=apikey, email=email, password=password))
+        print "Connecting to Ge.tt"
+        apitarget = "%s/1/users/login" %(self.apibase)
+        req = requests.post(apitarget, data=jdata)
+        if req.ok:
+            print "Logged in!"
+            res = json.loads(req.content)
+            self.atoken = res['accesstoken']
+            sharelist = self._getsharelist()
+        else:
+            sharelist = []
+
+        now = time()
         self.files = {}
         self.data = defaultdict(bytes)
         self.fd = 0
-        now = time()
         self.files['/'] = dict(st_mode=(S_IFDIR | 0755), st_ctime=now,
                                st_mtime=now, st_atime=now, st_nlink=2)
+
+        # Populate the directory with the share names
+        for share in sharelist:
+            dirname = share['title'] if "title" in share else share['sharename']
+            self.files["/%s" %(dirname)] = dict(st_mode=(S_IFDIR | 0777),
+                                      st_ctime=share['created'],
+                                      st_mtime=share['created'],
+                                      st_atime=now,
+                                      st_nlink=2,
+                                      )
+            self.files['/']['st_nlink'] += 1
+
+
+    def _getsharelist(self):
+        """ Get the list of shares for the logged in user """
+        apitarget = "%s/1/shares?accesstoken=%s" %(self.apibase, self.atoken)
+        req = requests.get(apitarget)
+        result = json.loads(req.content) if req.ok else []
+        return result
 
     def chmod(self, path, mode):
         self.files[path]['st_mode'] &= 0770000
@@ -133,9 +169,10 @@ class Gett(LoggingMixIn, Operations):
 
 
 if __name__ == '__main__':
-    if len(argv) != 2:
-        print('usage: %s <mountpoint>' % argv[0])
+    if len(argv) != 5:
+        print('usage: %s <mountpoint> <apikey> <email> <passoword>' % argv[0])
         exit(1)
 
-    # logging.getLogger().setLevel(logging.DEBUG)
-    fuse = FUSE(Gett(), argv[1], foreground=True)
+    mountpoint, apikey, username, password = argv[1:5]
+
+    fuse = FUSE(Gett(apikey, username, password), mountpoint, foreground=True)
