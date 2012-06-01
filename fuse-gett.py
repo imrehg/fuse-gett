@@ -35,6 +35,7 @@ class Gett(LoggingMixIn, Operations):
             res = json.loads(req.content)
             self.atoken = res['accesstoken']
             sharelist = self._getsharelist()
+            self.spaceused, self.spacetotal = res['user']['storage']['used'], res['user']['storage']['limit']
         else:
             sharelist = []
 
@@ -141,7 +142,12 @@ class Gett(LoggingMixIn, Operations):
         attrs[name] = value
 
     def statfs(self, path):
-        return dict(f_bsize=512, f_blocks=4096, f_bavail=2048)
+        """ Return file system use statistics, for example to be used with df """
+        return dict(f_bsize=1024,  # block size (not sure if it makes a difference)
+                    f_blocks=int(self.spacetotal/1024.0),  # max space available, 1K
+                    f_bfree=int((self.spacetotal-self.spaceused)/1024.0),  # needed for correct "Used" count, 1K
+                    f_bavail=int((self.spacetotal-self.spaceused)/1024.0),  # needed for correct "Available" count, 1K
+                    )
 
     def symlink(self, target, source):
         self.files[target] = dict(st_mode=(S_IFLNK | 0777), st_nlink=1,
