@@ -49,12 +49,23 @@ class Gett(LoggingMixIn, Operations):
         # Populate the directory with the share names
         for share in sharelist:
             dirname = share['title'] if "title" in share else share['sharename']
-            self.files["/%s" %(dirname)] = dict(st_mode=(S_IFDIR | 0777),
+            self.files["/%s" %(dirname)] = dict(st_mode=(S_IFDIR | 0755),
                                       st_ctime=share['created'],
                                       st_mtime=share['created'],
                                       st_atime=now,
                                       st_nlink=2,
                                       )
+            for f in share['files']:
+                filename = f['filename']
+                size = f['size'] if 'size' in f else 0
+                self.files["/%s/%s" %(dirname, filename)] = dict(st_mode=(S_IFREG | 0755),
+                                                                      st_ctime=f['created'],
+                                                                      st_mtime=f['created'],
+                                                                      st_atime=now,
+                                                                      st_nlink=1,
+                                                                      st_size=size,
+                                                                      )
+                self.files["/%s" %(dirname)]['st_nlink'] += 1
             self.files['/']['st_nlink'] += 1
 
 
@@ -116,7 +127,21 @@ class Gett(LoggingMixIn, Operations):
         return self.data[path][offset:offset + size]
 
     def readdir(self, path, fh):
-        return ['.', '..'] + [x[1:] for x in self.files if x != '/']
+        """ Read a directory """
+        # Currently working but low performance because we have to
+        # scan the complete list of files
+        pathlen = len(path)
+        if path != '/':
+            pathlen += 1
+        result = ['.', '..']
+        for x in self.files:
+            if x == '/' or not x.startswith(path):
+                continue
+            print x[pathlen:]
+            name = x[pathlen:].split('/')
+            if len(name) == 1:
+                result += [name[0]]
+        return result
 
     def readlink(self, path):
         return self.data[path]
