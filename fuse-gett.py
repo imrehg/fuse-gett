@@ -27,11 +27,11 @@ class Gett(LoggingMixIn, Operations):
 
     def __init__(self, apikey, email, password):
         jdata = json.dumps(dict(apikey=apikey, email=email, password=password))
-        print "Connecting to Ge.tt"
+        print("Connecting to Ge.tt")
         apitarget = "%s/1/users/login" %(self.apibase)
         req = requests.post(apitarget, data=jdata)
         if req.ok:
-            print "Logged in!"
+            print("Logged in!")
             res = json.loads(req.content)
             self.atoken = res['accesstoken']
             sharelist = self._getsharelist()
@@ -43,14 +43,14 @@ class Gett(LoggingMixIn, Operations):
         self.files = {}
         self.data = defaultdict(bytes)
         self.fd = 0
-        self.files['/'] = dict(st_mode=(S_IFDIR | 0755), st_ctime=now,
+        self.files['/'] = dict(st_mode=(S_IFDIR | 0o755), st_ctime=now,
                                st_mtime=now, st_atime=now, st_nlink=2)
 
         # Populate the directory with the share names
         for share in sharelist:
             sharename = share['sharename']
             dirname = share['title'] if "title" in share else sharename
-            self.files["/%s" %(dirname)] = dict(st_mode=(S_IFDIR | 0755),
+            self.files["/%s" %(dirname)] = dict(st_mode=(S_IFDIR | 0o755),
                                                 st_ctime=share['created'],
                                                 st_mtime=share['created'],
                                                 st_atime=now,
@@ -60,7 +60,7 @@ class Gett(LoggingMixIn, Operations):
             for f in share['files']:
                 filename = f['filename']
                 size = f['size'] if 'size' in f else 0
-                self.files["/%s/%s" %(dirname, filename)] = dict(st_mode=(S_IFREG | 0755),
+                self.files["/%s/%s" %(dirname, filename)] = dict(st_mode=(S_IFREG | 0o755),
                                                                  st_ctime=f['created'],
                                                                  st_mtime=f['created'],
                                                                  st_atime=now,
@@ -105,7 +105,7 @@ class Gett(LoggingMixIn, Operations):
         return req.ok
 
     def chmod(self, path, mode):
-        self.files[path]['st_mode'] &= 0770000
+        self.files[path]['st_mode'] &= 0o770000
         self.files[path]['st_mode'] |= mode
         return 0
 
@@ -142,11 +142,11 @@ class Gett(LoggingMixIn, Operations):
 
     def mkdir(self, path, mode):
         """ Create a new directory, that is a new remote share """
-        sharename = path[1:]
+        dirname = sharename = path[1:]
         res = self._createshare(sharename)
         if res:
             now = time()
-            self.files["/%s" %(dirname)] = dict(st_mode=(S_IFDIR | 0755),
+            self.files["/%s" %(dirname)] = dict(st_mode=(S_IFDIR | 0o755),
                                                 st_ctime=now,
                                                 st_mtime=now,
                                                 st_atime=now,
@@ -222,7 +222,7 @@ class Gett(LoggingMixIn, Operations):
                     )
 
     def symlink(self, target, source):
-        self.files[target] = dict(st_mode=(S_IFLNK | 0777), st_nlink=1,
+        self.files[target] = dict(st_mode=(S_IFLNK | 0o777), st_nlink=1,
                                   st_size=len(source))
 
         self.data[target] = source
