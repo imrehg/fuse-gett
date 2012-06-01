@@ -48,7 +48,8 @@ class Gett(LoggingMixIn, Operations):
 
         # Populate the directory with the share names
         for share in sharelist:
-            dirname = share['title'] if "title" in share else share['sharename']
+            sharename = share['sharename']
+            dirname = share['title'] if "title" in share else sharename
             self.files["/%s" %(dirname)] = dict(st_mode=(S_IFDIR | 0755),
                                       st_ctime=share['created'],
                                       st_mtime=share['created'],
@@ -59,12 +60,14 @@ class Gett(LoggingMixIn, Operations):
                 filename = f['filename']
                 size = f['size'] if 'size' in f else 0
                 self.files["/%s/%s" %(dirname, filename)] = dict(st_mode=(S_IFREG | 0755),
-                                                                      st_ctime=f['created'],
-                                                                      st_mtime=f['created'],
-                                                                      st_atime=now,
-                                                                      st_nlink=1,
-                                                                      st_size=size,
-                                                                      )
+                                                                 st_ctime=f['created'],
+                                                                 st_mtime=f['created'],
+                                                                 st_atime=now,
+                                                                 st_nlink=1,
+                                                                 st_size=size,
+                                                                 sharename=sharename,
+                                                                 fileid=f['fileid'],
+                                                                 )
                 self.files["/%s" %(dirname)]['st_nlink'] += 1
             self.files['/']['st_nlink'] += 1
 
@@ -75,6 +78,16 @@ class Gett(LoggingMixIn, Operations):
         req = requests.get(apitarget)
         result = json.loads(req.content) if req.ok else []
         return result
+
+    def _getfile(self, sharename, fileid):
+        apitarget = "%s/1/files/%s/%s/blob" %(self.apibase, sharename, fileid)
+        req = requests.get(apitarget)
+        if req.ok:
+            res = req.content
+            print "Downloaded: ", sharename, fileid
+        else:
+            res = 0
+        return res
 
     def chmod(self, path, mode):
         self.files[path]['st_mode'] &= 0770000
@@ -124,6 +137,12 @@ class Gett(LoggingMixIn, Operations):
         return self.fd
 
     def read(self, path, size, offset, fh):
+        """ Called when a file is read """
+        # Download data if we haven't done that yet
+        if path not in self.data:
+            sharename, fileid = self.files[path]['sharename'], self.files[path]['fileid']
+            binfile = self._getfile(sharename, fileid)
+            self.data[path] = binfile
         return self.data[path][offset:offset + size]
 
     def readdir(self, path, fh):
