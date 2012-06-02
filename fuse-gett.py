@@ -15,6 +15,8 @@ from fuse import FUSE, FuseOSError, Operations, LoggingMixIn
 import requests
 import simplejson as json
 
+import pygett
+
 if not hasattr(__builtins__, 'bytes'):
     bytes = str
 
@@ -22,55 +24,52 @@ class Gett(LoggingMixIn, Operations):
     """ 
     Starting off based on the example memory filesystem.
     """
-    apibase = "http://open.ge.tt"
-
 
     def __init__(self, apikey, email, password):
-        jdata = json.dumps(dict(apikey=apikey, email=email, password=password))
-        print("Connecting to Ge.tt")
-        apitarget = "%s/1/users/login" %(self.apibase)
-        req = requests.post(apitarget, data=jdata)
-        if req.ok:
-            print("Logged in!")
-            res = json.loads(req.content)
-            self.atoken = res['accesstoken']
-            sharelist = self._getsharelist()
-            self.spaceused, self.spacetotal = res['user']['storage']['used'], res['user']['storage']['limit']
-        else:
-            sharelist = []
+        self.client = pygett.Gett(apikey=apikey, email=email, password=password)
+
+        shares = self.client.get_shares()
 
         now = time()
         self.files = {}
         self.data = defaultdict(bytes)
         self.fd = 0
-        self.files['/'] = dict(st_mode=(S_IFDIR | 0o755), st_ctime=now,
-                               st_mtime=now, st_atime=now, st_nlink=2)
+        self.files['/'] = dict(st_mode=(S_IFDIR | 0o755),
+                               st_ctime=now,
+                               st_mtime=now,
+                               st_atime=now,
+                               st_nlink=2,
+                               )
 
+        print shares
         # Populate the directory with the share names
-        for share in sharelist:
-            sharename = share['sharename']
-            dirname = share['title'] if "title" in share else sharename
-            self.files["/%s" %(dirname)] = dict(st_mode=(S_IFDIR | 0o755),
-                                                st_ctime=share['created'],
-                                                st_mtime=share['created'],
-                                                st_atime=now,
-                                                st_nlink=2,
-                                                sharename=sharename,
-                                                )
-            for f in share['files']:
-                filename = f['filename']
-                size = f['size'] if 'size' in f else 0
-                self.files["/%s/%s" %(dirname, filename)] = dict(st_mode=(S_IFREG | 0o755),
-                                                                 st_ctime=f['created'],
-                                                                 st_mtime=f['created'],
-                                                                 st_atime=now,
-                                                                 st_nlink=1,
-                                                                 st_size=size,
-                                                                 sharename=sharename,
-                                                                 fileid=f['fileid'],
-                                                                 )
-                self.files["/%s" %(dirname)]['st_nlink'] += 1
-            self.files['/']['st_nlink'] += 1
+        for sname, sdata in shares.iteritems():
+            sharename = sdata.sharename
+            title = sdata.title
+            print sharename, title
+            # title
+            # dirname = share['title'] if "title" in share else sharename
+            # self.files["/%s" %(dirname)] = dict(st_mode=(S_IFDIR | 0o755),
+            #                                     st_ctime=share['created'],
+            #                                     st_mtime=share['created'],
+            #                                     st_atime=now,
+            #                                     st_nlink=2,
+            #                                     sharename=sharename,
+            #                                     )
+            # for f in share['files']:
+            #     filename = f['filename']
+            #     size = f['size'] if 'size' in f else 0
+            #     self.files["/%s/%s" %(dirname, filename)] = dict(st_mode=(S_IFREG | 0o755),
+            #                                                      st_ctime=f['created'],
+            #                                                      st_mtime=f['created'],
+            #                                                      st_atime=now,
+            #                                                      st_nlink=1,
+            #                                                      st_size=size,
+            #                                                      sharename=sharename,
+            #                                                      fileid=f['fileid'],
+            #                                                      )
+            #     self.files["/%s" %(dirname)]['st_nlink'] += 1
+            # self.files['/']['st_nlink'] += 1
 
 
     def _getsharelist(self):
@@ -177,7 +176,7 @@ class Gett(LoggingMixIn, Operations):
             pathlen += 1
         result = ['.', '..']
         for x in self.files:
-            if x == '/' or not x.startswith(path+'/'):
+            if x == '/' or x == path or not x.startswith(path):
                 continue
             name = x[pathlen:].split('/')
             if len(name) == 1:
