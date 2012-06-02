@@ -83,7 +83,16 @@ class Gett(LoggingMixIn, Operations):
     def _getfile(self, sharename, fileid, size=None, offset=None):
         """ Ge.tt API call to download a file """
         apitarget = "%s/1/files/%s/%s/blob" %(self.apibase, sharename, fileid)
-        headers = dict(Range="bytes=%d-%d" %(offset, offset+size)) if size and offset else None
+        if not size:
+            headers = None
+        else:
+            if not offset:
+                offset = 0
+            headers = {"Range" : "bytes=%d-%d" %(offset, offset+size),
+                       "Connection": "Keep-Alive",
+                       "Keep-Alive": "timeout=20, max=5",
+                       }
+        print("download -> ", headers)
         req = requests.get(apitarget, headers=headers)
         if req.ok:
             res = req.content
@@ -164,6 +173,7 @@ class Gett(LoggingMixIn, Operations):
         """ Called when a file is read """
         # should add some cleverer local caching in there
         sharename, fileid = self.files[path]['sharename'], self.files[path]['fileid']
+        print("Getting %d to %d (%.f KB)" %(offset, offset + size, size/1024.0))
         binfile = self._getfile(sharename, fileid, size, offset)
         return binfile
 
